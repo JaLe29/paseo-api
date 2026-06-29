@@ -1,0 +1,281 @@
+openapi: 3.0.3
+info:
+  title: paseo-api
+  version: 0.1.0
+  description: >
+    HTTP API in front of a paseo daemon. It talks to the daemon natively over its
+    WebSocket protocol (the same one the paseo CLI uses) — no CLI invocation and no
+    subprocess spawning. Point it at a paseo instance with the PASEO_HOST env var and
+    drive agents over plain HTTP.
+servers:
+  - url: http://localhost:3000
+security:
+  - apiToken: []
+paths:
+  /health:
+    get:
+      summary: Health check
+      security: []
+      responses:
+        "200":
+          description: Service is up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+                  host: { type: string, example: "192.168.0.3:6666" }
+  /run:
+    post:
+      summary: Run an agent and wait for the result
+      description: >
+        Creates a workspace, starts an agent with the prompt (and optional images),
+        waits for it to finish, returns the transcript and deletes the agent. The
+        direct replacement for `paseo run` + `paseo logs` + `paseo delete`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunRequest"
+      responses:
+        "200":
+          description: Agent finished
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunResult"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "502": { $ref: "#/components/responses/BadGateway" }
+  /agents:
+    get:
+      summary: List agents
+      parameters:
+        - name: includeArchived
+          in: query
+          schema: { type: boolean }
+      responses:
+        "200":
+          description: Agent list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agents:
+                    type: array
+                    items: { $ref: "#/components/schemas/Agent" }
+    post:
+      summary: Alias of POST /run
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunRequest"
+      responses:
+        "200":
+          description: Agent finished
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunResult"
+  /agents/{id}:
+    get:
+      summary: Inspect an agent
+      description: Resolve by full id, unique prefix or exact title.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Agent
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Agent" }
+        "404": { description: Not found }
+    delete:
+      summary: Hard-delete an agent
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: { deleted: { type: boolean } }
+  /agents/{id}/logs:
+    get:
+      summary: Get an agent's transcript
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - name: extractJson
+          in: query
+          schema: { type: boolean }
+          description: When true, returns JSON with transcript + extracted JSON objects instead of plain text.
+      responses:
+        "200":
+          description: Transcript (text/plain, or JSON when extractJson=true)
+  /agents/{id}/messages:
+    post:
+      summary: Send a follow-up message to an agent
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text: { type: string }
+                images:
+                  type: array
+                  items: { $ref: "#/components/schemas/Image" }
+      responses:
+        "200":
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: { accepted: { type: boolean } }
+  /agents/{id}/stop:
+    post:
+      summary: Stop (interrupt) an agent's current run
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Stopped
+  /agents/{id}/mode:
+    post:
+      summary: Set an agent's mode
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [modeId]
+              properties:
+                modeId: { type: string }
+      responses:
+        "200":
+          description: Mode set
+  /agents/{id}/archive:
+    post:
+      summary: Archive (soft-delete) an agent
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Archived
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: { archivedAt: { type: string } }
+  /providers:
+    get:
+      summary: List providers known to the daemon
+      responses:
+        "200":
+          description: Providers
+  /providers/{provider}/models:
+    get:
+      summary: List a provider's models and thinking options
+      parameters:
+        - { name: provider, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Models
+  /daemon/status:
+    get:
+      summary: Daemon health and provider availability
+      responses:
+        "200":
+          description: Daemon status
+components:
+  securitySchemes:
+    apiToken:
+      type: apiKey
+      in: header
+      name: x-api-token
+  responses:
+    BadRequest:
+      description: Invalid input
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: Missing or invalid x-api-token
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    BadGateway:
+      description: Upstream daemon error
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+  schemas:
+    Error:
+      type: object
+      properties:
+        message: { type: string }
+    Image:
+      type: object
+      required: [data, mimeType]
+      properties:
+        data: { type: string, description: Base64-encoded image bytes (no data: prefix) }
+        mimeType: { type: string, example: image/jpeg }
+    RunRequest:
+      type: object
+      required: [prompt]
+      properties:
+        prompt: { type: string }
+        images:
+          type: array
+          items: { $ref: "#/components/schemas/Image" }
+        provider: { type: string, description: "Overrides PASEO_PROVIDER (default: claude)" }
+        model: { type: string, description: "Overrides PASEO_MODEL" }
+        cwd: { type: string, description: "Agent working directory on the host" }
+        mode: { type: string, description: "Provider mode (e.g. bypassPermissions)" }
+        thinking: { type: string, description: "Thinking option id (e.g. low)" }
+        waitTimeoutMs: { type: integer, format: int64, description: "Max wait in ms (0 = config default)" }
+        extractJson: { type: boolean, description: "Also return JSON objects parsed from the transcript" }
+    RunResult:
+      type: object
+      properties:
+        agentId: { type: string }
+        status: { type: string, example: completed }
+        transcript: { type: string }
+        json:
+          type: array
+          description: Present when extractJson=true.
+          items: { type: object }
+    Agent:
+      type: object
+      properties:
+        id: { type: string }
+        provider: { type: string }
+        cwd: { type: string }
+        workspaceId: { type: string }
+        model: { type: string, nullable: true }
+        status:
+          type: string
+          enum: [initializing, idle, running, error, closed]
+        title: { type: string, nullable: true }
+        currentModeId: { type: string, nullable: true }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+        labels: { type: object, additionalProperties: { type: string } }
+        requiresAttention: { type: boolean }
+        attentionReason: { type: string, nullable: true }
+        archivedAt: { type: string, nullable: true }

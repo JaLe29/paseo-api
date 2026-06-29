@@ -1,0 +1,12 @@
+# Binaries
+/paseo-api
+/out
+*.exe
+
+# Go
+vendor/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
