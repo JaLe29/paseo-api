@@ -26,10 +26,12 @@ func New(cfg config.Config, client *paseo.Client, log *slog.Logger) *Server {
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 
-	// Public (no token): health and API docs.
+	// Public (no token): liveness probe only.
 	mux.HandleFunc("GET /health", s.handleHealth)
-	mux.HandleFunc("GET /openapi.yaml", s.handleOpenAPISpec)
-	mux.HandleFunc("GET /docs", s.handleDocs)
+
+	// API docs require the token (header only), like every other endpoint.
+	mux.Handle("GET /openapi.yaml", s.gate(s.handleOpenAPISpec))
+	mux.Handle("GET /docs", s.gate(s.handleDocs))
 
 	// Agent lifecycle.
 	mux.Handle("POST /run", s.gate(s.handleRun))

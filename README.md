@@ -63,7 +63,7 @@ All configuration is via environment variables. `PASEO_HOST` is the only require
 | `PASEO_THINKING` | `low` | Default thinking option id |
 | `PASEO_WAIT_TIMEOUT` | `5m` | Max time to wait for an agent (Go duration or seconds) |
 | `PASEO_CONNECT_TIMEOUT` | `15s` | WS connect timeout |
-| `API_TOKEN` | *(empty)* | If set, every endpoint except `/health` and the docs requires header `x-api-token: <token>` |
+| `API_TOKEN` | *(empty)* | If set, every endpoint except `/health` requires header `x-api-token: <token>` (including the docs) |
 | `PORT` | `3000` | Listen port |
 
 ## Endpoints
@@ -71,7 +71,7 @@ All configuration is via environment variables. `PASEO_HOST` is the only require
 | Method & path | CLI equivalent | Description |
 | --- | --- | --- |
 | `GET /health` | — | Liveness probe (no token) |
-| `GET /docs`, `GET /openapi.yaml` | — | Swagger UI + OpenAPI spec (no token) |
+| `GET /docs`, `GET /openapi.yaml` | — | Swagger UI + OpenAPI spec (token required if `API_TOKEN` set) |
 | `POST /run` | `paseo run` (+ `logs` + `delete`) | Run an agent and wait for the result |
 | `POST /agents` | `paseo run` | Alias of `POST /run` |
 | `GET /agents` | `paseo agent ls` | List agents (`?includeArchived=true`) |
