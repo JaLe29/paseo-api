@@ -1,6 +1,5 @@
-// Package httpapi exposes the paseo client over HTTP endpoints. It replaces the
-// paseo CLI calls in ChemCheck: instead of spawning a subprocess, a client calls
-// this API.
+// Package httpapi exposes the paseo client over HTTP endpoints. It replaces
+// paseo CLI calls: instead of spawning a subprocess, a client calls this API.
 package httpapi
 
 import (

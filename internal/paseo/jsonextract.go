@@ -5,8 +5,7 @@ import "encoding/json"
 // ExtractJSONObjects pulls every valid JSON object out of a piece of text
 // (typically an agent transcript that also contains prose/reasoning). It scans
 // balanced {…} (honoring strings/escapes) and tries to parse each slice — the
-// ones that parse are returned as raw JSON in order of appearance. This is a
-// port of PaseoClient.extractJsonObjects from the ChemCheck integration.
+// ones that parse are returned as raw JSON in order of appearance.
 func ExtractJSONObjects(text string) []json.RawMessage {
 	var found []json.RawMessage
 	buf := []byte(text)

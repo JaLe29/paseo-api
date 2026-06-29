@@ -8,9 +8,8 @@ paseo instance with one env var (`PASEO_HOST`) and drive AI coding agents over p
 HTTP: start a run, stream the transcript back, list/inspect/stop/archive agents, and
 query providers and daemon status.
 
-It was built to replace the CLI-based integration in
-[ChemCheck](https://github.com/JaLe29) (which spawned `paseo run` / `paseo logs` /
-`paseo delete` as Node subprocesses) with a single, dependency-free service.
+It was built to replace CLI-based integrations (which spawned `paseo run` /
+`paseo logs` / `paseo delete` as subprocesses) with a single, dependency-free service.
 
 ## How it works
 
@@ -120,15 +119,14 @@ Response:
 
 When the agent fails/times out, the API responds `502` with `{ "message": "…" }`.
 
-## Replacing the paseo CLI in ChemCheck
+## Using from a Node/TypeScript client
 
-ChemCheck's `PaseoClient.run(prompt, images)` spawned the `paseo` CLI. To switch to
-this service, replace that method with a single HTTP call (no other ChemCheck code —
-prompt building, JSON extraction, the task queue — needs to change):
+If you previously spawned the `paseo` CLI from a client, you can switch to this
+service by replacing that with a single HTTP call:
 
 ```ts
-// PaseoClient.ts (sketch)
-export class PaseoClient {
+// paseo-client.ts (sketch)
+export class PaseoApiClient {
   constructor(private apiUrl: string, private token?: string) {}
 
   async run(prompt: string, imagePaths: string[] = []): Promise<string> {
@@ -148,12 +146,12 @@ export class PaseoClient {
     });
     if (!res.ok) throw new Error(`paseo-api run failed: ${res.status}`);
     const { transcript } = await res.json();
-    return transcript; // same shape PaseoClient.run() returned before (raw transcript)
+    return transcript; // raw transcript
   }
 }
 ```
 
-`extractJsonObjects` on the ChemCheck side keeps working as-is on `transcript`, or you
+Any client-side JSON extraction keeps working as-is on `transcript`, or you
 can pass `extractJson: true` and read the `json` array directly.
 
 ## Development

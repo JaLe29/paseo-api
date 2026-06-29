@@ -61,7 +61,7 @@ type runResponseBody struct {
 
 // handleRun starts an agent with a prompt (and images), waits for it to finish
 // and returns the transcript. This is the direct replacement for the CLI-based
-// PaseoClient.run() from ChemCheck (run → logs → delete), over HTTP.
+// flow (run → logs → delete), over HTTP.
 func (s *Server) handleRun(w http.ResponseWriter, r *http.Request) {
 	var body runRequestBody
 	if err := decodeJSON(r, &body); err != nil {

@@ -1,7 +1,6 @@
 // Command paseo-api is an HTTP service that exposes a paseo daemon over REST.
-// It replaces invoking the paseo CLI and spawning subprocesses (e.g. in ChemCheck):
-// a client just POSTs a prompt (and images) to this API and gets the agent's
-// transcript back.
+// It replaces invoking the paseo CLI and spawning subprocesses: a client just
+// POSTs a prompt (and images) to this API and gets the agent's transcript back.
 package main
 
 import (
