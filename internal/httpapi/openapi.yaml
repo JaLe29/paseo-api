@@ -8,7 +8,8 @@ info:
     subprocess spawning. Point it at a paseo instance with the PASEO_HOST env var and
     drive agents over plain HTTP.
 servers:
-  - url: http://localhost:3000
+  - url: /
+    description: Same origin as the docs page
 security:
   - apiToken: []
 paths:
