@@ -182,18 +182,14 @@ internal/paseo     native paseo daemon client (WebSocket protocol + RPCs)
 
 ## Releasing & Docker Hub
 
-Pushing a git tag `v*` (or publishing a GitHub Release) triggers
-`.github/workflows/docker.yml`, which builds a multi-arch image
-(`linux/amd64`, `linux/arm64`) and pushes it to `jaledeveloper/paseo-api`.
+`.github/workflows/docker.yml` builds a multi-arch image (`linux/amd64`,
+`linux/arm64`) and pushes it to `jaledeveloper/paseo-api`. It runs **manually
+only** — trigger it from the Actions tab via **Run workflow**. The optional
+`version` input adds a versioned tag (e.g. `0.1.0`) alongside `latest`.
 
 Required repository secret: **`DOCKERHUB_TOKEN`** — a Docker Hub access token
 (Docker Hub → Account Settings → Security). The username is `jaledeveloper`
 (hardcoded in the workflow).
-
-```bash
-git tag v0.1.0
-git push origin v0.1.0
-```
 
 ## Scope
 

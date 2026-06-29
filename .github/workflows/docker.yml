@@ -1,16 +1,15 @@
 name: Docker build & push
 
-# Build a push image do Docker Hubu (jaledeveloper/paseo-api):
-#  - na push gitového tagu v* (např. v0.1.0) → tag = verze + latest
-#  - na publikování GitHub Release → totéž
-#  - ručně přes "Run workflow"
+# Build & push image to Docker Hub (jaledeveloper/paseo-api).
+# Manual only — trigger via "Run workflow" in the Actions tab.
+# Optional `version` input adds a versioned tag (e.g. 0.1.0) next to latest.
 on:
-  push:
-    tags:
-      - "v*"
-  release:
-    types: [published]
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Version tag to publish (e.g. 0.1.0). Leave empty for latest only."
+        required: false
+        type: string
 
 env:
   IMAGE: jaledeveloper/paseo-api
@@ -38,10 +37,8 @@ jobs:
         with:
           images: ${{ env.IMAGE }}
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=ref,event=tag
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest
+            type=raw,value=${{ inputs.version }},enable=${{ inputs.version != '' }}
 
       - name: Build & push
         uses: docker/build-push-action@v6

@@ -233,7 +233,7 @@ components:
       type: object
       required: [data, mimeType]
       properties:
-        data: { type: string, description: Base64-encoded image bytes (no data: prefix) }
+        data: { type: string, description: "Base64-encoded image bytes (no data: prefix)" }
         mimeType: { type: string, example: image/jpeg }
     RunRequest:
       type: object
