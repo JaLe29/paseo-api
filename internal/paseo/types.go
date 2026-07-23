@@ -24,6 +24,9 @@ type RunRequest struct {
 	Mode        string
 	Thinking    string
 	WaitTimeout time.Duration
+	// KeepAlive keeps the agent after the run finishes instead of deleting it,
+	// so it can be inspected or streamed afterwards.
+	KeepAlive bool
 }
 
 // RunResult is the outcome of an agent run.

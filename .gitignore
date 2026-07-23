@@ -6,6 +6,9 @@
 # Go
 vendor/
 
+# Local dev-only WebSocket stream test client (not part of the service)
+/cmd/streamtest/
+
 # Editor / OS
 .DS_Store
 .idea/

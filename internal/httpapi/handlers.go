@@ -49,6 +49,10 @@ type runRequestBody struct {
 	// When true, the response includes a `json` field with all JSON objects
 	// parsed out of the transcript (the last one is usually the agent's answer).
 	ExtractJSON bool `json:"extractJson"`
+	// When true, the agent is not deleted after the run, so it can be inspected
+	// or attached to via GET /agents/{id}/stream. The caller is then responsible
+	// for deleting it (DELETE /agents/{id}).
+	KeepAlive bool `json:"keepAlive"`
 }
 
 // runResponseBody is the response of POST /run.
@@ -82,6 +86,7 @@ func (s *Server) handleRun(w http.ResponseWriter, r *http.Request) {
 		Mode:        body.Mode,
 		Thinking:    body.Thinking,
 		WaitTimeout: time.Duration(body.WaitTimeoutMs) * time.Millisecond,
+		KeepAlive:   body.KeepAlive,
 	})
 	if err != nil {
 		s.respondClientError(w, "run failed", err)

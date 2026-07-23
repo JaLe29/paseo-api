@@ -63,7 +63,7 @@ All configuration is via environment variables. `PASEO_HOST` is the only require
 | `PASEO_THINKING` | `low` | Default thinking option id |
 | `PASEO_WAIT_TIMEOUT` | `5m` | Max time to wait for an agent (Go duration or seconds) |
 | `PASEO_CONNECT_TIMEOUT` | `15s` | WS connect timeout |
-| `API_TOKEN` | *(empty)* | If set, every endpoint except `/health` requires header `x-api-token: <token>` (including the docs) |
+| `API_TOKEN` | *(empty)* | If set, every endpoint requires header `x-api-token: <token>`, except `/health`, `/docs` and `/openapi.yaml` (public; the docs' **Authorize** button supplies the token for API calls) |
 | `PORT` | `3000` | Listen port |
 
 ## Endpoints
@@ -71,7 +71,7 @@ All configuration is via environment variables. `PASEO_HOST` is the only require
 | Method & path | CLI equivalent | Description |
 | --- | --- | --- |
 | `GET /health` | — | Liveness probe (no token) |
-| `GET /docs`, `GET /openapi.yaml` | — | Swagger UI + OpenAPI spec (token required if `API_TOKEN` set) |
+| `GET /docs`, `GET /openapi.yaml` | — | Swagger UI + OpenAPI spec (public; use the **Authorize** button to enter the token) |
 | `POST /run` | `paseo run` (+ `logs` + `delete`) | Run an agent and wait for the result |
 | `POST /agents` | `paseo run` | Alias of `POST /run` |
 | `GET /agents` | `paseo agent ls` | List agents (`?includeArchived=true`) |
@@ -127,9 +127,18 @@ request/response endpoints (which are unchanged). Under the hood the daemon
 already pushes streaming events over its WebSocket protocol; this endpoint
 forwards them to the client instead of discarding them.
 
-Attach to an **existing** agent by id (created e.g. via `POST /run` — note that
-`POST /run` deletes its agent when it finishes, so stream against an agent that
-persists). Authenticate with the same `x-api-token` header on the upgrade request.
+Attach to an **existing** agent by id. `POST /run` deletes its agent when it
+finishes, so to have something to stream, create the agent with
+`{"keepAlive": true}` (the agent is then kept and you delete it yourself via
+`DELETE /agents/{id}`). Authenticate with the same `x-api-token` header on the
+upgrade request.
+
+The bundled dev tool `cmd/streamtest` does the whole loop for you — create a
+keep-alive agent, stream it, send a follow-up, and clean up:
+
+```bash
+go run ./cmd/streamtest -url http://localhost:3000 -token "$API_TOKEN"
+```
 
 **Server → client** frames (JSON):
 

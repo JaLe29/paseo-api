@@ -281,6 +281,7 @@ components:
         thinking: { type: string, description: "Thinking option id (e.g. low)" }
         waitTimeoutMs: { type: integer, format: int64, description: "Max wait in ms (0 = config default)" }
         extractJson: { type: boolean, description: "Also return JSON objects parsed from the transcript" }
+        keepAlive: { type: boolean, description: "Keep the agent after the run (do not delete it) so it can be streamed via GET /agents/{id}/stream. Caller must delete it afterwards." }
     RunResult:
       type: object
       properties:

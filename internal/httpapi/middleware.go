@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"runtime/debug"
 	"time"
 )
 
@@ -24,6 +25,26 @@ func (s *Server) withAPIToken(next http.Handler) http.Handler {
 			writeError(w, http.StatusUnauthorized, "Missing or invalid x-api-token.")
 			return
 		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// withRecovery converts a panic in any handler into a logged stack trace and a
+// clean JSON 500, instead of letting net/http abruptly close the connection
+// (which upstream proxies surface as an opaque 502).
+func (s *Server) withRecovery(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if rec := recover(); rec != nil {
+				s.log.Error("panic in handler",
+					"method", r.Method,
+					"path", r.URL.Path,
+					"panic", rec,
+					"stack", string(debug.Stack()),
+				)
+				writeError(w, http.StatusInternalServerError, "Internal error.")
+			}
+		}()
 		next.ServeHTTP(w, r)
 	})
 }

@@ -41,10 +41,13 @@ func (c *Client) Run(ctx context.Context, req RunRequest) (RunResult, error) {
 		return RunResult{}, fmt.Errorf("create agent: %w", err)
 	}
 
-	// Always try to clean the agent up afterwards (best effort).
-	defer func() {
-		_ = conn.deleteAgent(context.Background(), agent.ID)
-	}()
+	// Clean the agent up afterwards (best effort), unless the caller wants it
+	// kept alive for later inspection or streaming.
+	if !req.KeepAlive {
+		defer func() {
+			_ = conn.deleteAgent(context.Background(), agent.ID)
+		}()
+	}
 
 	wait, err := conn.waitForFinish(ctx, agent.ID, req.WaitTimeout)
 	if err != nil {

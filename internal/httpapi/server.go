@@ -29,9 +29,10 @@ func (s *Server) Handler() http.Handler {
 	// Public (no token): liveness probe only.
 	mux.HandleFunc("GET /health", s.handleHealth)
 
-	// API docs require the token (header only), like every other endpoint.
-	mux.Handle("GET /openapi.yaml", s.gate(s.handleOpenAPISpec))
-	mux.Handle("GET /docs", s.gate(s.handleDocs))
+	// API docs are public so the spec and Swagger UI always load; the token is
+	// entered via Swagger UI's "Authorize" button and only guards the API calls.
+	mux.HandleFunc("GET /openapi.yaml", s.handleOpenAPISpec)
+	mux.HandleFunc("GET /docs", s.handleDocs)
 
 	// Agent lifecycle.
 	mux.Handle("POST /run", s.gate(s.handleRun))
@@ -51,7 +52,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /providers/{provider}/models", s.gate(s.handleProviderModels))
 	mux.Handle("GET /daemon/status", s.gate(s.handleDaemonStatus))
 
-	return s.withLogging(mux)
+	return s.withRecovery(s.withLogging(mux))
 }
 
 // gate wraps a handler func with the API-token check.
