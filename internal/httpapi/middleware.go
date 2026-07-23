@@ -1,7 +1,10 @@
 package httpapi
 
 import (
+	"bufio"
 	"crypto/subtle"
+	"errors"
+	"net"
 	"net/http"
 	"time"
 )
@@ -34,6 +37,16 @@ type statusRecorder struct {
 func (r *statusRecorder) WriteHeader(code int) {
 	r.status = code
 	r.ResponseWriter.WriteHeader(code)
+}
+
+// Hijack lets WebSocket upgrades work through the logging wrapper by delegating
+// to the underlying ResponseWriter (the net/http server's writer supports it).
+func (r *statusRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	hj, ok := r.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, errors.New("underlying ResponseWriter does not support hijacking")
+	}
+	return hj.Hijack()
 }
 
 // withLogging logs every request (method, path, status, duration).

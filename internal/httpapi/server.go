@@ -39,6 +39,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /agents", s.gate(s.handleListAgents))
 	mux.Handle("GET /agents/{id}", s.gate(s.handleGetAgent))
 	mux.Handle("GET /agents/{id}/logs", s.gate(s.handleAgentLogs))
+	mux.Handle("GET /agents/{id}/stream", s.gate(s.handleStreamAgent)) // WebSocket: live events
 	mux.Handle("POST /agents/{id}/messages", s.gate(s.handleSendMessage))
 	mux.Handle("POST /agents/{id}/stop", s.gate(s.handleStopAgent))
 	mux.Handle("POST /agents/{id}/mode", s.gate(s.handleSetMode))

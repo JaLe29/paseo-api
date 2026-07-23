@@ -77,6 +77,7 @@ All configuration is via environment variables. `PASEO_HOST` is the only require
 | `GET /agents` | `paseo agent ls` | List agents (`?includeArchived=true`) |
 | `GET /agents/{id}` | `paseo agent inspect` | Inspect one agent (id, prefix or title) |
 | `GET /agents/{id}/logs` | `paseo agent logs` | Transcript (`?extractJson=true` for JSON) |
+| `GET /agents/{id}/stream` | — | **WebSocket**: stream an agent's live events while a conversation runs |
 | `POST /agents/{id}/messages` | `paseo agent send` | Send a follow-up message |
 | `POST /agents/{id}/stop` | `paseo agent stop` | Interrupt the current run |
 | `POST /agents/{id}/mode` | `paseo agent mode` | Change the agent mode |
@@ -118,6 +119,58 @@ Response:
 ```
 
 When the agent fails/times out, the API responds `502` with `{ "message": "…" }`.
+
+### `GET /agents/{id}/stream` (WebSocket)
+
+Real-time streaming of a running agent's events, added **alongside** the
+request/response endpoints (which are unchanged). Under the hood the daemon
+already pushes streaming events over its WebSocket protocol; this endpoint
+forwards them to the client instead of discarding them.
+
+Attach to an **existing** agent by id (created e.g. via `POST /run` — note that
+`POST /run` deletes its agent when it finishes, so stream against an agent that
+persists). Authenticate with the same `x-api-token` header on the upgrade request.
+
+**Server → client** frames (JSON):
+
+```jsonc
+{ "type": "<daemon event type>", "payload": { /* forwarded verbatim */ } }
+{ "type": "idle",  "payload": { "status": "completed", "lastMessage": "…" } } // a turn settled
+{ "type": "error", "payload": { "error": "…" } }                              // failure
+```
+
+Streaming events are forwarded verbatim (their `type` is the daemon's own), so
+this works regardless of the exact event schema. `idle` is derived from the
+daemon's `wait_for_finish` and is emitted once per turn. The socket closes when
+the session ends.
+
+**Client → server** frames (JSON):
+
+```jsonc
+{ "type": "message", "text": "continue please", "images": [] } // follow-up (arms a new turn)
+{ "type": "stop" }                                             // interrupt the current run
+{ "type": "close" }                                            // end the stream
+```
+
+Minimal Node client:
+
+```ts
+import WebSocket from "ws";
+
+const ws = new WebSocket(`ws://localhost:3000/agents/${agentId}/stream`, {
+  headers: { "x-api-token": token }, // only if API_TOKEN is set
+});
+ws.on("message", (data) => {
+  const ev = JSON.parse(data.toString());
+  console.log(ev.type, ev.payload);
+});
+ws.on("open", () => ws.send(JSON.stringify({ type: "message", text: "hi" })));
+```
+
+> Note: whether the daemon streams events to a freshly attached client
+> automatically (vs. requiring an explicit subscribe) has not been verified
+> against a live instance. Un-forwarded broadcast types are logged at
+> `debug`/`warn` level, so you can confirm what actually flows on your daemon.
 
 ## Using from a Node/TypeScript client
 

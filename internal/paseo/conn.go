@@ -27,6 +27,8 @@ type daemonConn struct {
 
 	mu      sync.Mutex
 	waiters map[string]chan inbound // requestId -> response channel
+	subs    map[int]chan inbound    // subscriber id -> broadcast channel
+	subSeq  int                     // monotonic subscriber id counter
 	closed  bool
 
 	serverInfo chan struct{} // closed once the server_info handshake message arrives
@@ -65,6 +67,7 @@ func (c *Client) dial(ctx context.Context) (*daemonConn, error) {
 		ws:         ws,
 		log:        c.log,
 		waiters:    make(map[string]chan inbound),
+		subs:       make(map[int]chan inbound),
 		serverInfo: make(chan struct{}),
 		fatal:      make(chan error, 1),
 	}
@@ -179,7 +182,10 @@ func (c *daemonConn) readLoop() {
 		}
 
 		if meta.RequestID == "" {
-			continue // broadcast/streaming message with no correlation — ignore
+			// Broadcast/streaming message with no correlation — fan it out to
+			// any stream subscribers instead of dropping it.
+			c.publish(inbound{Type: msg.Type, Payload: msg.Payload})
+			continue
 		}
 
 		c.deliver(meta.RequestID, inbound{Type: msg.Type, Payload: msg.Payload})
@@ -209,6 +215,51 @@ func (c *daemonConn) deliver(requestID string, msg inbound) {
 	}
 }
 
+// subscribe registers a broadcast channel that receives every un-correlated
+// (streaming) message until unsubscribe is called or the connection dies. The
+// returned channel is buffered; if a slow consumer lets it fill up, further
+// broadcasts for that subscriber are dropped rather than blocking the read loop.
+func (c *daemonConn) subscribe() (int, <-chan inbound) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	id := c.subSeq
+	c.subSeq++
+	ch := make(chan inbound, 256)
+	if !c.closed {
+		c.subs[id] = ch
+	} else {
+		close(ch) // connection already dead — hand back a closed channel
+	}
+	return id, ch
+}
+
+// unsubscribe removes and closes a previously registered broadcast channel.
+func (c *daemonConn) unsubscribe(id int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if ch, ok := c.subs[id]; ok {
+		delete(c.subs, id)
+		close(ch)
+	}
+}
+
+// publish fans a broadcast message out to all subscribers, non-blocking.
+func (c *daemonConn) publish(msg inbound) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if len(c.subs) == 0 {
+		c.log.Debug("dropped broadcast (no subscribers)", "type", msg.Type)
+		return
+	}
+	for id, ch := range c.subs {
+		select {
+		case ch <- msg:
+		default:
+			c.log.Warn("stream subscriber lagging, dropping message", "subscriber", id, "type", msg.Type)
+		}
+	}
+}
+
 func (c *daemonConn) failAll(err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -224,6 +275,10 @@ func (c *daemonConn) failAll(err error) {
 		close(ch)
 		delete(c.waiters, id)
 	}
+	for id, ch := range c.subs {
+		close(ch)
+		delete(c.subs, id)
+	}
 }
 
 func (c *daemonConn) close() {
@@ -233,6 +288,10 @@ func (c *daemonConn) close() {
 		return
 	}
 	c.closed = true
+	for id, ch := range c.subs {
+		close(ch)
+		delete(c.subs, id)
+	}
 	c.mu.Unlock()
 	_ = c.ws.Close()
 }

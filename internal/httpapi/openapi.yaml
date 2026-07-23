@@ -120,6 +120,36 @@ paths:
       responses:
         "200":
           description: Transcript (text/plain, or JSON when extractJson=true)
+  /agents/{id}/stream:
+    get:
+      summary: Stream an agent's live events (WebSocket)
+      description: >
+        Upgrades the connection to a WebSocket and streams the agent's events in
+        real time while a conversation is running. This is additive: the
+        request/response endpoints are unaffected.
+
+
+        The client authenticates with the same `x-api-token` header on the
+        upgrade request. Once connected:
+
+
+        Server → client frames are JSON objects `{ "type": string, "payload":
+        object }`. `type` is the daemon's native event type for streaming
+        messages (forwarded verbatim), or a client-synthesized lifecycle signal:
+        `idle` (a turn settled; payload has `status` and `lastMessage`) or
+        `error` (payload has `error`). The socket closes when the session ends.
+
+
+        Client → server frames are JSON objects `{ "type": "message" | "stop" |
+        "close", "text"?: string, "images"?: Image[] }`: `message` sends a
+        follow-up (arms a new turn), `stop` interrupts the current run, `close`
+        ends the stream.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "101": { description: Switching protocols (WebSocket) }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { description: Agent not found }
   /agents/{id}/messages:
     post:
       summary: Send a follow-up message to an agent
